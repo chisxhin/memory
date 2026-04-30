@@ -1,0 +1,140 @@
+Memory Match Sidegame
+=====================
+
+A terminal-based memory matching game built with C++ and ncurses. Test your memory by matching pairs of symbols on a 4x4 grid!
+
+
+Features
+--------
+
+- 4x4 grid with 8 unique symbol pairs
+- 20 lives to complete the game
+- Help feature (5 uses) - temporarily reveals all cards
+- Color-coded interface (if terminal supports it)
+- 5-second memorization phase at the start
+- Full keyboard controls
+
+
+Requirements
+------------
+
+- C++17 compatible compiler (g++, clang++)
+- ncurses library
+- Make build system
+
+
+Installing ncurses
+------------------
+
+Ubuntu/Debian:
+    sudo apt-get install libncurses-dev
+
+Fedora/RHEL:
+    sudo dnf install ncurses-devel
+
+Arch Linux:
+    sudo pacman -S ncurses
+
+macOS:
+    brew install ncurses
+
+
+Compilation
+-----------
+
+Simply run:
+    make
+
+To clean build files:
+    make clean
+
+
+How to Run
+----------
+
+After compilation:
+    ./memory
+
+
+How to Play
+-----------
+
+Objective:
+    Match all 8 pairs of symbols on a 4x4 grid before running out of lives.
+
+Gameplay:
+    1. Memorization Phase: All cards are revealed for 5 seconds at the start. 
+       Use this time to memorize the positions!
+
+    2. Main Game:
+       - Cards start face-down (shown as ?)
+       - Select a card with arrow keys and press ENTER or SPACE to reveal it
+       - Select a second card to try and find a match
+       - If symbols match: both cards stay revealed and you earn a pair
+       - If symbols don't match: both cards flip back and you lose 1 life
+
+
+Controls
+--------
+
+    Arrow Keys     - Move cursor
+    ENTER / SPACE  - Select/reveal card
+    H              - Use help (reveals all cards for 2 seconds)
+    Q              - Quit game
+
+
+Scoring
+-------
+
+    Starting lives : 20
+    Match success  : +1 pair, no life change
+    Match failure  : -1 life
+    Help uses      : 5 maximum
+    Win condition  : Match all 8 pairs
+    Loss condition : Run out of lives (0 remaining)
+
+
+Planned Features
+----------------
+
+    [ ] Custom player name input - Enter your name before starting
+    [ ] Saved gameplay files - Save and load game progress
+    [ ] Leaderboard system - Track high scores and fastest completions
+    [ ] Multiple difficulty levels
+    [ ] Sound effects
+    [ ] Time attack mode
+
+
+Project Structure
+-----------------
+
+    memory/
+    ├── main.cpp      - Entry point and game initialization
+    ├── memory.cpp    - Main game logic and rendering
+    ├── memory.hpp    - Header file with game structures
+    ├── Makefile      - Build configuration
+    └── README.txt    - This file
+
+
+Troubleshooting
+---------------
+
+Game doesn't display properly?
+    - Make sure your terminal supports at least 80x24 characters
+    - Full-screen your terminal window for best experience
+    - Some terminals may need to be resized after launching
+
+Colors not showing?
+    - Ensure your terminal supports colors (echo $TERM)
+    - Try setting: export TERM=xterm-256color
+
+Compilation errors?
+    - Verify ncurses is installed correctly
+    - Check that you're using C++17 or later
+    - Run make clean then make again
+
+
+License
+-------
+
+This project is open source and available under the MIT License.
