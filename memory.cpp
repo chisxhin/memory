@@ -38,6 +38,21 @@ struct Cell {
     bool matched;
 };
 
+void drawBoxAtSafe(WINDOW* window, int y, int x, int height, int width) {
+    for (int i = 0; i < width; ++i) {
+        mvwaddch(window, y, x + i, ACS_HLINE);
+        mvwaddch(window, y + height - 1, x + i, ACS_HLINE);
+    }
+    for (int i = 0; i < height; ++i) {
+        mvwaddch(window, y + i, x, ACS_VLINE);
+        mvwaddch(window, y + i, x + width - 1, ACS_VLINE);
+    }
+    mvwaddch(window, y, x, ACS_ULCORNER);
+    mvwaddch(window, y, x + width - 1, ACS_URCORNER);
+    mvwaddch(window, y + height - 1, x, ACS_LLCORNER);
+    mvwaddch(window, y + height - 1, x + width - 1, ACS_LRCORNER);
+}
+
 void shuffleGrid(std::vector<Cell>& grid) {
     std::vector<char> symbols;
     for (int i = 0; i < TOTAL_PAIRS; ++i) {
@@ -99,6 +114,32 @@ void drawCell(WINDOW* win, int y, int x, char symbol, bool isRevealed, bool isMa
 
 } // anonymous namespace
 
+void drawAsciiTitle(WINDOW* win, int screenW, bool hasColor) {
+    const std::vector<std::string> MEMORY_TITLE = {
+        R"(___  ___ ________  ________________   __  _____   ___  ___  ___ _____ )",
+        R"(|  \/  ||  ___|  \/  |  _  | ___ \ \ / / |  __ \ / _ \ |  \/  ||  ___|)",
+        R"(| .  . || |__ | .  . | | | | |_/ /\ V /  | |  \// /_\ \| .  . || |__  )",
+        R"(| |\/| ||  __|| |\/| | | | |    /  \ /   | | __ |  _  || |\/| ||  __| )",
+        R"(| |  | || |___| |  | \ \_/ / |\ \  | |   | |_\ \| | | || |  | || |___ )",
+        R"(\_|  |_/\____/\_|  |_/\___/\_| \_| \_/    \____/\_| |_/\_|  |_/\____/ )",
+        R"(                                                                       )"
+    };
+    
+    if (hasColor) {
+        wattron(win, COLOR_PAIR(MEMORY_GOLD_SAND) | A_BOLD);
+    }
+    
+    for (size_t i = 0; i < MEMORY_TITLE.size(); i++) {
+        int titleLen = MEMORY_TITLE[i].length();
+        mvwprintw(win, 1 + i, (screenW - titleLen) / 2, "%s", MEMORY_TITLE[i].c_str());
+    }
+    
+    if (hasColor) {
+        wattroff(win, COLOR_PAIR(MEMORY_GOLD_SAND) | A_BOLD);
+    }
+}
+
+
 MemoryMatchResult playMemoryMatchMinigame(const std::string& playerName, bool hasColor) {
     MemoryMatchResult result;
     result.pairsMatched = 0;
@@ -131,10 +172,11 @@ MemoryMatchResult playMemoryMatchMinigame(const std::string& playerName, bool ha
         getmaxyx(stdscr, screenH, screenW);
 
         // Center the grid
+        // Center the grid, but leave room for the title
         int gridStartY = (screenH - (GRID_SIZE * CELL_HEIGHT)) / 2;
-        if (gridStartY < 4) gridStartY = 4;
+        if (gridStartY < 15) gridStartY = 15;  // Start below the title and status
         int gridStartX = (screenW - TOTAL_GRID_WIDTH) / 2;
-        if (gridStartX < 2) gridStartX = 2;
+        if (gridStartX < 4) gridStartX = 4;
 
         // Resize overlay to fill screen
         wresize(overlay, screenH, screenW);
@@ -146,34 +188,71 @@ MemoryMatchResult playMemoryMatchMinigame(const std::string& playerName, bool ha
             wbkgd(overlay, COLOR_PAIR(MEMORY_GOLD_BLACK));
         }
 
-        // Title (centered)
-        const char* title = "MEMORY MATCH SIDEGAME";
-        int titleLen = strlen(title);
-        if (hasColor) {
-            wattron(overlay, COLOR_PAIR(MEMORY_GOLD_SAND) | A_BOLD);
-        }
-        mvwprintw(overlay, gridStartY - 4, (screenW - titleLen) / 2, "%s", title);
-        if (hasColor) {
-            wattroff(overlay, COLOR_PAIR(MEMORY_GOLD_SAND) | A_BOLD);
-        }
+        // Define arena dimensions
+        const int arenaWidth = 70;
+        const int arenaHeight = 24;
+        const int arenaLeft = (screenW - arenaWidth) / 2;
+        const int arenaTop = gridStartY - 2;
 
-        // Status (centered)
+        // Draw ASCII title (centered)
+        drawAsciiTitle(overlay, screenW, hasColor);
+
+        // Status line - below the title
         char status[100];
         snprintf(status, sizeof(status), "Player: %s  |  Pairs: %d/8  |  Lives: %d",
                 playerName.c_str(), result.pairsMatched, result.livesRemaining);
         int statusLen = strlen(status);
-        mvwprintw(overlay, gridStartY - 2, (screenW - statusLen) / 2, "%s", status);
+        if (hasColor) {
+            wattron(overlay, COLOR_PAIR(MEMORY_GOLD_SAND) | A_BOLD);
+        }
+        mvwprintw(overlay, 9, (screenW - statusLen) / 2, "%s", status);
 
-        // Help text (centered)
+        // Help text
         char helpText[100];
         snprintf(helpText, sizeof(helpText), "Help uses: %d/5 (press H)", MAX_HELP_USES - helpUses);
         int helpLen = strlen(helpText);
-        mvwprintw(overlay, gridStartY - 1, (screenW - helpLen) / 2, "%s", helpText);
+        mvwprintw(overlay, 10, (screenW - helpLen) / 2, "%s", helpText);
 
-        // Instructions (centered)
+        // Calculate box dimensions based on title width
+        int titleWidth = 75;  // Width of the ASCII title
+        int boxWidth = titleWidth + 4;  // Add padding
+        int boxHeight = (GRID_SIZE * CELL_HEIGHT) + 8;  // Taller box with more padding
+        int boxStartX = (screenW - boxWidth) / 2;
+        int boxStartY = 12;  // Start below status text
+
+        // Draw the big box
+        if (hasColor) {
+            wattron(overlay, COLOR_PAIR(MEMORY_GOLD_SAND));
+        }
+        drawBoxAtSafe(overlay, boxStartY, boxStartX, boxHeight, boxWidth);
+
+        // Draw inner box border for depth
+        drawBoxAtSafe(overlay, boxStartY + 1, boxStartX + 2, boxHeight - 2, boxWidth - 4);
+        if (hasColor) {
+            wattroff(overlay, COLOR_PAIR(MEMORY_GOLD_SAND));
+        }
+
+        // Calculate grid position inside the box
+        gridStartY = boxStartY + (boxHeight - (GRID_SIZE * CELL_HEIGHT)) / 2;
+        gridStartX = boxStartX + (boxWidth - TOTAL_GRID_WIDTH) / 2;
+
+        // Instructions (below the box)
         const char* instructions = "Arrow Keys: Move  |  ENTER/Space: Select  |  H: Help  |  Q: Quit";
         int instrLen = strlen(instructions);
-        mvwprintw(overlay, gridStartY + (GRID_SIZE * CELL_HEIGHT) + 1, (screenW - instrLen) / 2, "%s", instructions);
+        if (hasColor) {
+            wattron(overlay, COLOR_PAIR(MEMORY_GOLD_SAND) | A_BOLD);
+        }
+        mvwprintw(overlay, boxStartY + boxHeight + 2, (screenW - instrLen) / 2, "%s", instructions);
+        if (hasColor) {
+            wattroff(overlay, COLOR_PAIR(MEMORY_GOLD_SAND) | A_BOLD);
+        }
+
+        // Draw a decorative line above the instructions
+        const char* divider = "════════════════════════════════════════════════════════════════════════════";
+        int divLen = strlen(divider);
+        if (screenW > divLen) {
+            mvwprintw(overlay, boxStartY + boxHeight + 1, (screenW - divLen) / 2, "%s", divider);
+        }
 
         // Memorization phase
         if (memorizationPhase) {
@@ -264,8 +343,9 @@ MemoryMatchResult playMemoryMatchMinigame(const std::string& playerName, bool ha
                     firstMatchIdx = cellIdx;
                     grid[cellIdx].revealed = true;
                     waitingForSecondMatch = true;
-                    //Add visual feedback on the status line
-                    mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "First tile selected!     ");
+                    //(debug)
+                    //mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "First tile selected!     ");
+                    
                     //Force immediate redraw to show the first revealed tile
                     wrefresh(overlay);
                 }
@@ -273,7 +353,9 @@ MemoryMatchResult playMemoryMatchMinigame(const std::string& playerName, bool ha
                     //Reveal second tile and check for match
                     grid[cellIdx].revealed = true;
                      
-                    mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "Second tile selected! Checking...");
+                    //debug
+                    //mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "Second tile selected! Checking...");
+                    
                     //Force immediate redraw to show BOTH tiles
                     wrefresh(overlay);
 
@@ -300,12 +382,14 @@ MemoryMatchResult playMemoryMatchMinigame(const std::string& playerName, bool ha
                         grid[firstMatchIdx].matched = true;
                         grid[cellIdx].matched = true;
                         result.pairsMatched++;
-                        mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "MATCH! +1 pair            ");
+                        //debug
+                        //mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "MATCH! +1 pair            ");
                         wrefresh(overlay);
                     } 
                     else {
                         //Doesn't match - hide both tiles and lose a life
-                        mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "NO MATCH! -1 life         ");
+                        //debug
+                        //mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "NO MATCH! -1 life         ");
                         wrefresh(overlay);
                         napms(800); //So players can see it for a bit more after a mismatch
 
