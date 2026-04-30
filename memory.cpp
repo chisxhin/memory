@@ -260,26 +260,66 @@ MemoryMatchResult playMemoryMatchMinigame(const std::string& playerName, bool ha
 
             if (!grid[cellIdx].matched && !grid[cellIdx].revealed) {
                 if (!waitingForSecondMatch) {
+                    //Reveal first tile
                     firstMatchIdx = cellIdx;
                     grid[cellIdx].revealed = true;
                     waitingForSecondMatch = true;
-                } else if (cellIdx != firstMatchIdx) {
-                    grid[cellIdx].revealed = true;
+                    //Add visual feedback on the status line
+                    mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "First tile selected!     ");
+                    //Force immediate redraw to show the first revealed tile
                     wrefresh(overlay);
-                    napms(500);
+                }
+                else if (cellIdx != firstMatchIdx) {
+                    //Reveal second tile and check for match
+                    grid[cellIdx].revealed = true;
+                     
+                    mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "Second tile selected! Checking...");
+                    //Force immediate redraw to show BOTH tiles
+                    wrefresh(overlay);
+
+                    //Force a complete redraw of the grid
+                    //Redraw all cells to ensure second tile is visible
+                    for (int row = 0; row < GRID_SIZE; ++row) {
+                        for (int col = 0; col < GRID_SIZE; ++col) {
+                            int idx = row * GRID_SIZE + col;
+                            int x = gridStartX + col * CELL_WIDTH;
+                            int y = gridStartY + row * CELL_HEIGHT;
+                            bool isSelected = (row == currentRow && col == currentCol && 
+                                            !grid[idx].matched && !grid[idx].revealed);
+                            drawCell(overlay, y, x, grid[idx].symbol, grid[idx].revealed, 
+                                    grid[idx].matched, isSelected, false);
+                        }
+                    }
+                    wrefresh(overlay);
+
+                    //Give player time to see BOTH tiles clearly
+                    napms(1500);
 
                     if (grid[firstMatchIdx].symbol == grid[cellIdx].symbol) {
+                        //Match found - keep both tiles open and mark as matched
                         grid[firstMatchIdx].matched = true;
                         grid[cellIdx].matched = true;
                         result.pairsMatched++;
-                    } else {
+                        mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "MATCH! +1 pair            ");
+                        wrefresh(overlay);
+                    } 
+                    else {
+                        //Doesn't match - hide both tiles and lose a life
+                        mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "NO MATCH! -1 life         ");
+                        wrefresh(overlay);
+                        napms(800); //So players can see it for a bit more after a mismatch
+
                         result.livesRemaining--;
-                        napms(800);
                         grid[firstMatchIdx].revealed = false;
                         grid[cellIdx].revealed = false;
+
+                        mvwprintw(overlay, gridStartY - 3, (screenW - 40) / 2, "                         ");
                     }
                     waitingForSecondMatch = false;
                     firstMatchIdx = -1;
+
+                    //Force another redraw after the mismatch to update the grid state
+                    wrefresh(overlay);
                 }
             }
         }
